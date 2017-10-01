@@ -27,6 +27,9 @@ green = (  0,255,  0)
 gameDisplay = pygame.display.set_mode((display_size,display_size))
 pygame.display.set_caption('pacmonia')
 
+#pagmonia gamesounds database
+pygame.sound = pygame.mixer.Sound('Pacman_Dubstep_Remix.wav')
+
 
 ########################## Functions
 
@@ -358,6 +361,7 @@ def gameloop():
 
 def startIntro():
     global totalcounter
+    pygame.sound.play()
     
     introExit = False
     pygame.key.set_repeat(50,50)
@@ -369,8 +373,9 @@ def startIntro():
         
         for event in pygame.event.get():
             et = event.type
-            if et == pygame.KEYUP: 
+            if et == pygame.KEYUP:
                 introExit = True
+                pygame.mixer.stop()
             if et == pygame.QUIT:
                 pygame.quit()
                 quit()
