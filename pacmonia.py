@@ -2,6 +2,53 @@ import pygame
 import time
 import numpy as np
 import random as rd
+#import threading
+
+
+diffuswater = 0.143e-2
+
+def D():
+    return diffuswater
+
+#fig = plt.figure()
+##plt.rc('text', usetex=True)
+##plt.rc('font', family='serif')
+#ax = fig.add_subplot(111, projection='3d')
+#
+#ax.set_xlabel('Radius')
+#ax.set_ylabel('Time')
+#ax.set_zlabel('Temperature')
+#
+#for t in range(20000):
+#    T=compute(T)
+#    #string1="Zeit: " + (t*dt) + "     Temperatur: " + (T[center][center][center])
+#    if(t%500)==0:
+#        print(t*dt)
+#        print(T[center,center,center])
+#        
+#        for x in range(N):
+#            ax.scatter(x*dx, t*dt, T[x,center,center],'r')
+#        
+#    if T[center,center,center] >= targettemp:
+#        print(t*dt)
+#        print(T[center,center,center])
+#        break
+
+
+def computefield(T):
+    Ttemp=T
+    global display_height
+    global dt
+    global dx
+    
+    N = display_height/10
+    
+    #boundary conditions fixed?
+    for i in range(1,N-1):
+        for j in range(1,N-1):
+                T[i,j] = Ttemp[i,j] + (D(i,j)*dt/(dx**2))*(Ttemp[i+1,j] + Ttemp[i-1,j] + Ttemp[i,j+1] + Ttemp[i,j-1] + -4*Ttemp[i,j])
+    return T
+
 
 ########################## Variables
 
@@ -13,8 +60,9 @@ import random as rd
 
 pygame.init()
 
-display_size = 600
-gameover     = False
+display_width = 1400
+display_height  = 800
+gameover      = False
 
 black = (  0,  0,  0)
 white = (255,255,255)
@@ -22,13 +70,18 @@ red   = (255,  0,  0)
 blue  = (  0,  0,255)
 green = (  0,255,  0)
 
-#ckfield = np.zeros((display_size/10,display_size/10))
+#ckfield = np.zeros((display_height/10,display_height/10))
 
-gameDisplay = pygame.display.set_mode((display_size,display_size))
+gameDisplay = pygame.display.set_mode((display_width,display_height))
 pygame.display.set_caption('pacmonia')
 
+bg = pygame.image.load("bg.png")
+
 #pagmonia gamesounds database
-pygame.sound = pygame.mixer.Sound('Pacman_Dubstep_Remix.wav')
+pygame.starting_sound = pygame.mixer.Sound('Pacman_Dubstep.wav')
+pygame.pac_adios = pygame.mixer.Sound('Pacman_adios.wav')
+pygame.blob = pygame.mixer.Sound('blob_sound.wav')
+pygame.shining = pygame.mixer.Sound('shining.wav')
 
 
 ########################## Functions
@@ -38,12 +91,12 @@ def text_objects(text, font):
     return textSurface, textSurface.get_rect()
 
 def message_display(text):
-    largeText = pygame.font.Font('freesansbold.ttf',115)
+    largeText = pygame.font.Font('freesansbold.ttf',90)
     TextSurf, TextRect = text_objects(text, largeText)
-    TextRect.center = ((display_size/2),(display_size/2))
+    TextRect.center = ((display_width/2),(display_height/2))
     gameDisplay.blit(TextSurf, TextRect)
     pygame.display.update()
-    time.sleep(1.5)
+    time.sleep(2)
 
 def crash(string):
     message_display(string)
@@ -56,12 +109,12 @@ def collision(p,b,m):
 
     # for all bacteria
     for i in range(len(b)):
-        if p.rect.colliderect(b[i].rect): # bacteria overlay with player
-            #tobremove.append(i)
-            totalcounter += 1
-
+#        if p.rect.colliderect(b[i].rect): # bacteria overlay with player
+#            #tobremove.append(i)
+#            totalcounter += 1
         for j in range(len(m)):    
-            if m[j].rect.colliderect(b[i].rect): # bacteria overlay with phages
+            if m[j].rect.colliderect(b[i].rect) and i not in tobremove: # bacteria overlay with phages
+                pygame.blob.play()
                 tobremove.append(i)
                 totalcounter += 1
                 m[j].counter += 1
@@ -70,8 +123,9 @@ def collision(p,b,m):
     # for all phages
     for i in range(len(m)): 
         if m[i].rect.colliderect(p.rect): # phages collide with player
+            pygame.pac_adios.play()
             gameover = True
-            crash('You lose')
+            crash('You died')
     
     tomremove=[] # list of phages to remove (timeout)
     # for every phage
@@ -82,12 +136,12 @@ def collision(p,b,m):
     tomremove.sort(reverse=True)
     for i in range(len(tomremove)):
         m.remove(m[tomremove[i]])
-            
     
     length = len(m)
     for i in range(length): # for all phages
-        if m[i].counter > phage.maxeat: # phage is overeaten
-            m.append(phage(int(rd.randrange(0,display_size-phage.size)),int(rd.randrange(0,display_size-phage.size)))) # create a new phage
+        if m[i].counter > phage.maxeat:
+            if len(m) <= 8:
+                m.append(phage(int(rd.randrange(0,display_width-phage.size)),int(rd.randrange(0,display_height-phage.size)))) # create a new phage
             m[i].counter=0 # set counter of overeaten phage to zero
     
     
@@ -97,23 +151,27 @@ def collision(p,b,m):
         
     if len(b)==0: # no bacterium existing anymore ... LOST
         gameover=True
-        crash('You lose')
-    elif len(b) > 2e5: # too much bacteria existing ... LOST
+        crash('Patient healed')
+    elif len(b) > 2e3: # too much bacteria existing ... LOST
         gameover=True
-        crash('You lose')
+        crash('Patient dead')
+    if len(m)==0:
+        gameover=True
+        crash('Macrophages starved')
 
 def display_highscore(_time):
     global totalcounter
-    text = 'Highscore: ' + str(round(_time,2))
+    text = 'Highscore: ' + str(totalcounter)
     largeText = pygame.font.Font('freesansbold.ttf',20) # TODO monospace
     TextSurf, TextRect = text_objects(text, largeText)
-    TextRect.center = ((display_size/2),(display_size/20))
+    TextRect.center = ((display_width/2),(display_height/20))
     gameDisplay.blit(TextSurf, TextRect)
     
 def multiply(b):
     length = len(b)
     for i in range(length):
         b.append(bacteria(b[i].x+bacteria.size, b[i].y))
+    pygame.shining.play()
 
 
 A = 100 
@@ -125,21 +183,25 @@ def velocity(dist):
 ########################## Classes
 
 class phage(pygame.sprite.Sprite):
-    size    = 20
+    size    = 60
     speed   = 100
-    radius  = 200
-    maxeat  = 50
-    maxtime = 20
+    radius  = 250
+    maxeat  = 35
+    maxtime = 15
     
     def __init__(self,x,y):
         self.x  = x
-        self.y  = y #int(rd.randrange(0,display_size-self.size))
+        self.y  = y #int(rd.randrange(0,display_height-self.size))
         self.vx = 0
         self.vy = 0
+        self.lvx = self.vx
+        self.lvy = self.vy
         
         pygame.sprite.Sprite.__init__(self)
-        self.im = pygame.Surface([self.size,self.size])
-        self.im.fill(blue)
+        #self.im = pygame.Surface([self.size,self.size])
+        #self.im.fill(blue)
+        self.im = pygame.image.load('Makrophage.png')
+        self.im = pygame.transform.scale(self.im, (self.size, self.size)) # stretch image to application size
         
         self.rect   = self.im.get_rect()
         self.rect.x = self.x
@@ -153,29 +215,67 @@ class phage(pygame.sprite.Sprite):
         global gameDisplay
         gameDisplay.blit(self.im,(self.x,self.y))
         
-            
-    def update(self,dt,b):
-        
-        #searching for bacteria in shortest distance
-        distances = []
-        for i in range(len(b)):
-            distance = np.sqrt((self.x-b[i].x)**2 + (self.y-b[i].y)**2)
-            distances.append(distance)
-        
-        c = min(distances)
-        ind = distances.index(c)
-        
-        if distances[ind] < phage.radius and rd.random()<0.85:
-            #move towards bacterium
-            self.vx = (velocity(distances[ind])/distances[ind])* (b[ind].x - self.x)
-            self.vy = (velocity(distances[ind])/distances[ind])* (b[ind].y - self.y)
+    
+    def patrol(self):
+        if rd.random() < 0.9:
+            self.vx = self.lvx
+            self.vy = self.lvy
         else:
-            #move to random direction
             self.vx = int(rd.randrange(-self.speed,self.speed))
             self.vy = int(rd.randrange(-self.speed,self.speed))
+    
+    def update(self,dt,b,p):
+        
+        #move to random direction (Diffusion)
+        if rd.random() < 0.15:
+            self.vx = int(rd.randrange(-self.speed,self.speed))
+            self.vy = int(rd.randrange(-self.speed,self.speed))
+        
+        else:
+            pdist = np.sqrt((self.x-p.x)**2 + (self.y-p.y)**2)
+            
+            #searching for bacteria in shortest distance
+            distances = []
+            for i in range(len(b)):
+                distance = np.sqrt((self.x-b[i].x)**2 + (self.y-b[i].y)**2)
+                distances.append(distance)
                 
+            c = min(distances)
+            ind = distances.index(c)
+            
+            if pdist < phage.radius:
+                numberbclose=0
+                #Calculate number of bacteria closer than player
+                for i in range(len(distances)):
+                    if distances[i] < phage.radius:
+                        numberbclose+=1
+                
+                #if less than 4, go for player
+                if numberbclose < 5:
+                    self.vx = (velocity(pdist)/pdist)* (p.x - self.x)
+                    self.vy = (velocity(pdist)/pdist)* (p.y - self.y)
+                #else go for bacteria
+                else:
+                    if distances[ind] < phage.radius:
+                        #move towards closest bacterium
+                        self.vx = (velocity(distances[ind])/distances[ind])* (b[ind].x - self.x)
+                        self.vy = (velocity(distances[ind])/distances[ind])* (b[ind].y - self.y)
+                        
+            #player not close go for bacteria anyway
+            else:
+                if distances[ind] < phage.radius:
+                    #move towards closest bacterium
+                    self.vx = (velocity(distances[ind])/distances[ind])* (b[ind].x - self.x)
+                    self.vy = (velocity(distances[ind])/distances[ind])* (b[ind].y - self.y)
+                #no close bacteria then go patrol 
+                else:
+                    self.patrol()
+            
         self.x += self.vx*dt
         self.y += self.vy*dt
+        
+        self.lvx = self.vx
+        self.lvy = self.vy
         
         self.rect.x = self.x
         self.rect.y = self.y
@@ -183,22 +283,24 @@ class phage(pygame.sprite.Sprite):
 class bacteria(pygame.sprite.Sprite):
     
     speed = 30
-    size  = 10
+    size  = 15
     
     def __init__(self,x,y):
         self.x  = x
-        self.y  = y #int(rd.randrange(0,display_size-self.size))
+        self.y  = y #int(rd.randrange(0,display_height-self.size))
         self.vx = 0
         self.vy = 0
         
         if rd.random() < 0.33:
             # randomn spawn
-            self.x = int(rd.randrange(0,display_size-bacteria.size))
-            self.y = int(rd.randrange(0,display_size-bacteria.size))
+            self.x = int(rd.randrange(0,display_width-bacteria.size))
+            self.y = int(rd.randrange(0,display_height-bacteria.size))
         
         pygame.sprite.Sprite.__init__(self)
-        self.im = pygame.Surface([self.size,self.size])
-        self.im.fill(red)
+        #self.im = pygame.Surface([self.size,self.size])
+        #self.im.fill(red)
+        self.im = pygame.image.load('bact.png')
+        self.im = pygame.transform.scale(self.im, (self.size, self.size)) # stretch image to application size
         
         self.rect = self.im.get_rect()
         self.rect.x = self.x
@@ -223,72 +325,107 @@ class bacteria(pygame.sprite.Sprite):
 class player(pygame.sprite.Sprite):
     
     speed = 120
-    size  = 40
+    size  = 30
     
     def __init__(self):
-        self.x = display_size/2
-        self.y = display_size/2
-        #self.im = pygame.image.load('racecar.png')
+        self.x = display_width/2
+        self.y = display_height/2
+        self.im = 0
         self.vx = 0
         self.vy = 0
         
         pygame.sprite.Sprite.__init__(self)
-        self.im = pygame.Surface([self.size,self.size])
-        self.im.fill(green)
-        self.rect = self.im.get_rect()
-        
-        self.rect.x = self.x
-        self.rect.y = self.y
+        self.image('right')
+        #self.im = pygame.Surface([self.size,self.size])
+        #self.im.fill(green)
+#        self.rect = self.im.get_rect()
+#        
+#        self.rect.x = self.x
+#        self.rect.y = self.y
     
     def draw(self):
         global gameDisplay
         gameDisplay.blit(self.im,(self.x,self.y))
+        
+    def image(self,string):
+        if string == 'right':
+            self.im = pygame.image.load('pacman_right.png')
+            self.im = pygame.transform.scale(self.im, (self.size, self.size)) # stretch image to application size
+            self.rect = self.im.get_rect()
+            self.rect.x = self.x
+            self.rect.y = self.y
+        elif string == 'left':
+            self.im = pygame.image.load('pacman_left.png')
+            self.im = pygame.transform.scale(self.im, (self.size, self.size)) # stretch image to application size
+            self.rect = self.im.get_rect()
+            self.rect.x = self.x
+            self.rect.y = self.y
+        elif string == 'up':
+            self.im = pygame.image.load('pacman_up.png')
+            self.im = pygame.transform.scale(self.im, (self.size, self.size)) # stretch image to application size
+            self.rect = self.im.get_rect()
+            self.rect.x = self.x
+            self.rect.y = self.y
+        elif string == 'down':
+            self.im = pygame.image.load('pacman_down.png')
+            self.im = pygame.transform.scale(self.im, (self.size, self.size)) # stretch image to application size
+            self.rect = self.im.get_rect()
+            self.rect.x = self.x
+            self.rect.y = self.y
+        self.draw()
+                        
         
     # arrow inputs
     def inputs(self, keys):
         if keys[pygame.K_LEFT]:
             self.vx = -self.speed
             self.vy = 0
+            self.image('left')
         if keys[pygame.K_RIGHT]:
             self.vx = self.speed
             self.vy = 0
+            self.image('right')
         if keys[pygame.K_UP]:
             self.vx = 0
             self.vy = -self.speed
+            self.image('up')
         if keys[pygame.K_DOWN]:
             self.vx = 0
             self.vy = self.speed
+            self.image('down')
+        if keys[pygame.K_SPACE]:
+            self.vx = 0
+            self.vy = 0
             
-    def update(self,dt):
-        self.x += self.vx*dt
-        self.y += self.vy*dt
+    def update(self,dt,b):
+        
+        coll = False
+        for i in range(len(b)):
+            if b[i].rect.colliderect(self.rect):
+                coll = True
+        if coll:
+            self.x += self.vx*0.6*dt
+            self.y += self.vy*0.6*dt
+        else:
+            self.x += self.vx*dt
+            self.y += self.vy*dt
         
         self.rect.x = self.x
         self.rect.y = self.y
-
-        # left screen on the right side
-        if self.x > display_size:
-            self.x = self.x - display_size
-
-        # left screen on the left side
+        
         if self.x < 0:
-            self.x = self.x + display_size
-
-        # left screen on the right side
-        if self.y > display_size:
-            self.y = self.y - display_size
-
-        # left screen on the left side
+            self.x = 0
+            # MINUS EIGENE GRÖSSE AUS self.rect?
+        elif self.x > (display_width-self.size):
+            self.x = display_width-self.size
+            
         if self.y < 0:
-            self.y = self.y + display_size
-        
-        #self.vx *= 0.99
-        #self.vy *= 0.99
-        
-        #if (self.x > display_size - self.width or self.x < 0) or (self.y < 0 or display_size - self.height < self.y):
-        #    self.crash()
+            self.y = 0
+            # MINUS EIGENE GRÖSSE AUS self.rect?
+        elif self.y > (display_height - self.size):
+            self.y = display_height-self.size
 
-N = 10 # counter of bacteria at start time
+N = 20 # counter of bacteria at start time
 totalcounter=0
 
 def gameloop():
@@ -310,16 +447,16 @@ def gameloop():
     pygame.key.set_repeat(50,50)
     
     p = player()
+    
     m = [] # list storing all phages
     # add three pages with random position to start screen/list m
-    m.append(phage(int(rd.randrange(0,display_size-phage.size)),int(rd.randrange(0,display_size-phage.size)))) 
-    m.append(phage(int(rd.randrange(0,display_size-phage.size)),int(rd.randrange(0,display_size-phage.size))))
-    m.append(phage(int(rd.randrange(0,display_size-phage.size)),int(rd.randrange(0,display_size-phage.size))))
+    for _ in range(3):
+        m.append(phage(int(rd.randrange(0,display_width-phage.size)),int(rd.randrange(0,display_height-phage.size))))
     
     b=[] # list storing all bacteria
     for _ in range(N):
         # add N bacteria randomly to start screen/list b
-        b.append(bacteria(int(rd.randrange(0,display_size-bacteria.size)),int(rd.randrange(0,display_size-bacteria.size)))) 
+        b.append(bacteria(int(rd.randrange(0,display_width-bacteria.size)),int(rd.randrange(0,display_height-bacteria.size)))) 
     
     
     while not gameExit:
@@ -330,6 +467,7 @@ def gameloop():
         
         pos = pygame.mouse.get_pos()
         
+        ########### EVENTS
         for event in pygame.event.get():
             et = event.type
             if et == pygame.QUIT:
@@ -344,23 +482,15 @@ def gameloop():
             
         collision(p,b,m)
         
-        p.update(dt)
-
-        # for all bacteria
-        for i in range(len(b)):
-            if p.rect.colliderect(b[i].rect):  # bacteria overlay with player
-                p.vx = 0
-                p.vy = 0
-
-
+        ############ UPDATES
+        p.update(dt,b)
         for i in range(len(m)):
-            m[i].update(dt,b)
+            m[i].update(dt,b,p)
         for i in range(len(b)):
             b[i].update(dt)
+        #ckfield = computefield(ckfield)
         
-        #ckfield = sim.computefield(ckfield)
-        
-        
+        ########### DRAWING
         gameDisplay.fill(white)
         
         for i in range(len(b)):
@@ -373,49 +503,41 @@ def gameloop():
             t2 = time.time()
             _time=t2-t1
         
-#        display_highscore(_time)
-        
-        if multiplytime > 4:
+        display_highscore(_time)
+
+        if multiplytime > 5:
             multiply(b)
             multiplytime=0
         
-        
         pygame.display.update()
-        time.sleep(1/80)
+        time.sleep(1/90)
 
 
 def startIntro():
-    global totalcounter
-    pygame.sound.play()
-    
     introExit = False
-    pygame.key.set_repeat(50,50)
-    i = 0
+    pygame.starting_sound.play()
     
     while not introExit:
-        
-        pos = pygame.mouse.get_pos()
-        
         for event in pygame.event.get():
             et = event.type
-            if et == pygame.KEYUP:
+            if et == pygame.KEYUP: 
                 introExit = True
-                pygame.mixer.stop()
             if et == pygame.QUIT:
                 pygame.quit()
                 quit()
 
         myimage = pygame.image.load("StartScreen.png")
-        myimage = pygame.transform.scale(myimage, (display_size, display_size)) # stretch image to application size
+        myimage = pygame.transform.scale(myimage, (display_width, display_height)) # stretch image to application size
         imagerect = myimage.get_rect()
         
         gameDisplay.blit(myimage, imagerect)
-        pygame.display.flip()
-
+        pygame.display.update()
         time.sleep(1/20)
-
-
-
+        
 ########################## Game
 startIntro()
 gameloop()
+
+
+
+
