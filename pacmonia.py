@@ -13,8 +13,8 @@ import random as rd
 
 pygame.init()
 
-display_size  = 600
-gameover       = False
+display_size = 600
+gameover     = False
 
 black = (  0,  0,  0)
 white = (255,255,255)
@@ -59,6 +59,7 @@ def collision(p,b,m):
         if p.rect.colliderect(b[i].rect): # bacteria overlay with player
             #tobremove.append(i)
             totalcounter += 1
+
         for j in range(len(m)):    
             if m[j].rect.colliderect(b[i].rect): # bacteria overlay with phages
                 tobremove.append(i)
@@ -264,6 +265,22 @@ class player(pygame.sprite.Sprite):
         
         self.rect.x = self.x
         self.rect.y = self.y
+
+        # left screen on the right side
+        if self.x > display_size:
+            self.x = self.x - display_size
+
+        # left screen on the left side
+        if self.x < 0:
+            self.x = self.x + display_size
+
+        # left screen on the right side
+        if self.y > display_size:
+            self.y = self.y - display_size
+
+        # left screen on the left side
+        if self.y < 0:
+            self.y = self.y + display_size
         
         #self.vx *= 0.99
         #self.vy *= 0.99
@@ -328,6 +345,14 @@ def gameloop():
         collision(p,b,m)
         
         p.update(dt)
+
+        # for all bacteria
+        for i in range(len(b)):
+            if p.rect.colliderect(b[i].rect):  # bacteria overlay with player
+                p.vx = 0
+                p.vy = 0
+
+
         for i in range(len(m)):
             m[i].update(dt,b)
         for i in range(len(b)):
@@ -394,7 +419,3 @@ def startIntro():
 ########################## Game
 startIntro()
 gameloop()
-
-
-
-
