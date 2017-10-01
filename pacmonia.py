@@ -13,8 +13,7 @@ import random as rd
 
 pygame.init()
 
-display_width  = 1300
-display_height = 800
+display_size  = 600
 gameover       = False
 
 black = (  0,  0,  0)
@@ -25,7 +24,7 @@ green = (  0,255,  0)
 
 #ckfield = np.zeros((display_size/10,display_size/10))
 
-gameDisplay = pygame.display.set_mode((display_width,display_height))
+gameDisplay = pygame.display.set_mode((display_size,display_size))
 pygame.display.set_caption('pacmonia')
 
 
@@ -38,7 +37,7 @@ def text_objects(text, font):
 def message_display(text):
     largeText = pygame.font.Font('freesansbold.ttf',115)
     TextSurf, TextRect = text_objects(text, largeText)
-    TextRect.center = ((display_width/2),(display_height/2))
+    TextRect.center = ((display_size/2),(display_size/2))
     gameDisplay.blit(TextSurf, TextRect)
     pygame.display.update()
     time.sleep(1.5)
@@ -84,7 +83,7 @@ def collision(p,b,m):
     length = len(m)
     for i in range(length): # for all phages
         if m[i].counter > phage.maxeat: # phage is overeaten
-            m.append(phage(int(rd.randrange(0,display_width-phage.size)),int(rd.randrange(0,display_height-phage.size)))) # create a new phage
+            m.append(phage(int(rd.randrange(0,display_size-phage.size)),int(rd.randrange(0,display_size-phage.size)))) # create a new phage
             m[i].counter=0 # set counter of overeaten phage to zero
     
     
@@ -104,7 +103,7 @@ def display_highscore(_time):
     text = 'Highscore: ' + str(round(_time,2))
     largeText = pygame.font.Font('freesansbold.ttf',20) # TODO monospace
     TextSurf, TextRect = text_objects(text, largeText)
-    TextRect.center = ((display_width/2),(display_height/20))
+    TextRect.center = ((display_size/2),(display_size/20))
     gameDisplay.blit(TextSurf, TextRect)
     
 def multiply(b):
@@ -190,8 +189,8 @@ class bacteria(pygame.sprite.Sprite):
         
         if rd.random() < 0.33:
             # randomn spawn
-            self.x = int(rd.randrange(0,display_width-bacteria.size))
-            self.y = int(rd.randrange(0,display_height-bacteria.size))
+            self.x = int(rd.randrange(0,display_size-bacteria.size))
+            self.y = int(rd.randrange(0,display_size-bacteria.size))
         
         pygame.sprite.Sprite.__init__(self)
         self.im = pygame.Surface([self.size,self.size])
@@ -223,8 +222,8 @@ class player(pygame.sprite.Sprite):
     size  = 40
     
     def __init__(self):
-        self.x = display_width/2
-        self.y = display_height/2
+        self.x = display_size/2
+        self.y = display_size/2
         #self.im = pygame.image.load('racecar.png')
         self.vx = 0
         self.vy = 0
@@ -293,14 +292,14 @@ def gameloop():
     p = player()
     m = [] # list storing all phages
     # add three pages with random position to start screen/list m
-    m.append(phage(int(rd.randrange(0,display_width-phage.size)),int(rd.randrange(0,display_height-phage.size)))) 
-    m.append(phage(int(rd.randrange(0,display_width-phage.size)),int(rd.randrange(0,display_height-phage.size))))
-    m.append(phage(int(rd.randrange(0,display_width-phage.size)),int(rd.randrange(0,display_height-phage.size))))
+    m.append(phage(int(rd.randrange(0,display_size-phage.size)),int(rd.randrange(0,display_size-phage.size)))) 
+    m.append(phage(int(rd.randrange(0,display_size-phage.size)),int(rd.randrange(0,display_size-phage.size))))
+    m.append(phage(int(rd.randrange(0,display_size-phage.size)),int(rd.randrange(0,display_size-phage.size))))
     
     b=[] # list storing all bacteria
     for _ in range(N):
         # add N bacteria randomly to start screen/list b
-        b.append(bacteria(int(rd.randrange(0,display_width-bacteria.size)),int(rd.randrange(0,display_height-bacteria.size)))) 
+        b.append(bacteria(int(rd.randrange(0,display_size-bacteria.size)),int(rd.randrange(0,display_size-bacteria.size)))) 
     
     
     while not gameExit:
@@ -372,15 +371,18 @@ def startIntro():
             et = event.type
             if et == pygame.KEYUP: 
                 introExit = True
+            if et == pygame.QUIT:
+                pygame.quit()
+                quit()
 
         myimage = pygame.image.load("StartScreen.png")
-        myimage = pygame.transform.scale(myimage, (display_width, display_height)) # stretch image to application size
+        myimage = pygame.transform.scale(myimage, (display_size, display_size)) # stretch image to application size
         imagerect = myimage.get_rect()
         
         gameDisplay.blit(myimage, imagerect)
         pygame.display.flip()
 
-        time.sleep(1/80)
+        time.sleep(1/20)
 
 
 
